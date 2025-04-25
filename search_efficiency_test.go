@@ -2,18 +2,23 @@ package etrie
 
 import (
 	"fmt"
+	"reflect"
 	"slices"
 	"testing"
 )
 
-var contentMap1 = map[byte]string{
-	'a': "c",
-	'c': "a",
-	'd': "d",
+func generateMap(count int) map[byte]string {
+	result := make(map[byte]string)
+	for i := 0; i < count; i++ {
+		result[byte(i)] = fmt.Sprintf("%d", i)
+	}
+	return result
 }
 
 func BenchmarkSearchEfficiency(b *testing.B) {
-	benchmarkSearchEfficiency(b, contentMap1)
+	benchmarkSearchEfficiency(b, generateMap(10))
+	benchmarkSearchEfficiency(b, generateMap(50))
+	benchmarkSearchEfficiency(b, generateMap(100))
 }
 
 func benchmarkSearchEfficiency[K comparable, V any](b *testing.B, contentMap map[K]V) {
@@ -23,15 +28,17 @@ func benchmarkSearchEfficiency[K comparable, V any](b *testing.B, contentMap map
 	}
 	lastItem := array[len(array)-1]
 	var searchResult V
-	b.Run(fmt.Sprintf("ArraySearch_%d", len(contentMap)), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			slices.Contains(array, lastItem)
-		}
-	})
-	b.Run(fmt.Sprintf("MapSearch_%d", len(contentMap)), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			searchResult = contentMap[lastItem]
-		}
-	})
+	b.Run(fmt.Sprintf("ArraySearch_%d_%s", len(contentMap), reflect.TypeOf(array[0]).String()),
+		func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				slices.Contains(array, lastItem)
+			}
+		})
+	b.Run(fmt.Sprintf("MapSearch_%d_%s", len(contentMap), reflect.TypeOf(array[0]).String()),
+		func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				searchResult = contentMap[lastItem]
+			}
+		})
 	_ = searchResult
 }
