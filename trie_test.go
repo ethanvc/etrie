@@ -12,4 +12,5 @@ func TestEmptyPath(t *testing.T) {
 	var params []Param
 	resultNode = trie.Search("", &params)
 	require.Equal(t, 3, resultNode.GetValue())
+	require.Equal(t, "", resultNode.GetPattern())
 }

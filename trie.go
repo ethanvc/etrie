@@ -159,6 +159,10 @@ func (n *Node[T]) GetValue() T {
 	return *n.value
 }
 
+func (n *Node[T]) GetPattern() string {
+	return n.pattern
+}
+
 func findLongestCommonPrefix(s1, s2 string) string {
 	i := 0
 	for ; i < len(s1) && i < len(s2); i++ {

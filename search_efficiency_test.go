@@ -17,8 +17,8 @@ func generateMap(count int) map[byte]string {
 
 func BenchmarkSearchEfficiency(b *testing.B) {
 	benchmarkSearchEfficiency(b, generateMap(10))
-	benchmarkSearchEfficiency(b, generateMap(50))
-	benchmarkSearchEfficiency(b, generateMap(100))
+	benchmarkSearchEfficiency(b, generateMap(20))
+	benchmarkSearchEfficiency(b, generateMap(30))
 }
 
 func benchmarkSearchEfficiency[K comparable, V any](b *testing.B, contentMap map[K]V) {
