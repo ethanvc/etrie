@@ -22,7 +22,7 @@ func NewTrie[T any](splitter PatternSplitter) *Trie[T] {
 
 func (t *Trie[T]) Insert(pattern string, value T) error {
 	parts := t.splitter.Split(pattern)
-	return t.root.insert(parts, value)
+	return t.insert(t.root, pattern, parts, value)
 }
 
 func (t *Trie[T]) MustInsert(pattern string, value T) {
@@ -30,6 +30,77 @@ func (t *Trie[T]) MustInsert(pattern string, value T) {
 	if err != nil {
 		panic(err)
 	}
+}
+
+func (t *Trie[T]) insert(n *Node[T], pattern string, parts []PatternPart, value T) error {
+	if n.isEmptyNode() {
+		part := parts[0]
+		n.patternPart = part
+		if len(parts) == 1 {
+			n.value = &value
+			return nil
+		}
+		return t.insertChild(n, pattern, parts[1:], value)
+	}
+	return errors.New("not implemented")
+}
+
+func (t *Trie[T]) insertChild(n *Node[T], pattern string, parts []PatternPart, value T) error {
+	part := parts[0]
+	if part.Parameter {
+		return t.insertParameterChild(n, pattern, part, parts[1:], value)
+	}
+	firstByte := part.Value[0]
+	childNode := n.children[firstByte]
+	if childNode == nil {
+		childNode = &Node[T]{
+			patternPart: part,
+		}
+		n.children[firstByte] = childNode
+		if len(parts) == 1 {
+			childNode.value = &value
+			return nil
+		}
+		return t.insertChild(childNode, pattern, parts[1:], value)
+	}
+	longestPrefix := findLongestCommonPrefix(part.Value, childNode.patternPart.Value)
+	newParentNode := &Node[T]{
+		patternPart: PatternPart{
+			Value: longestPrefix,
+		},
+		children: map[byte]*Node[T]{},
+	}
+	n.children[firstByte] = newParentNode
+
+	childNode.patternPart.Value = childNode.patternPart.Value[len(longestPrefix):]
+	newParentNode.children[childNode.patternPart.Value[0]] = childNode
+
+	childNode = &Node[T]{
+		patternPart: PatternPart{
+			Value: part.Value[len(longestPrefix):],
+		},
+	}
+	newParentNode.children[childNode.patternPart.Value[0]] = childNode
+	if len(parts) == 1 {
+		childNode.value = &value
+		return nil
+	}
+	return t.insertChild(childNode, pattern, parts[1:], value)
+}
+
+func (t *Trie[T]) insertParameterChild(n *Node[T], pattern string, part PatternPart, parts []PatternPart, value T) error {
+	if n.parameterChild != nil {
+		return errors.New("conflict pattern: same place can only have one parameter part")
+	}
+	childNode := &Node[T]{
+		patternPart: part,
+	}
+	n.parameterChild = childNode
+	if len(parts) == 1 {
+		childNode.value = &value
+		return nil
+	}
+	return t.insertChild(childNode, pattern, parts[1:], value)
 }
 
 func (t *Trie[T]) Search(path string, params *[]Param) *Node[T] {
@@ -81,77 +152,7 @@ type Node[T any] struct {
 	parameterChild *Node[T]
 	patternPart    PatternPart
 	value          *T
-}
-
-func (n *Node[T]) insert(parts []PatternPart, value T) error {
-	if n.isEmptyNode() {
-		part := parts[0]
-		n.patternPart = part
-		if len(parts) == 1 {
-			n.value = &value
-			return nil
-		}
-		return n.insertChild(parts[1:], value)
-	}
-	return errors.New("not implemented")
-}
-
-func (n *Node[T]) insertChild(parts []PatternPart, value T) error {
-	part := parts[0]
-	if part.Parameter {
-		return n.insertParameterChild(part, parts[1:], value)
-	}
-	firstByte := part.Value[0]
-	childNode := n.children[firstByte]
-	if childNode == nil {
-		childNode = &Node[T]{
-			patternPart: part,
-		}
-		n.children[firstByte] = childNode
-		if len(parts) == 1 {
-			childNode.value = &value
-			return nil
-		}
-		return childNode.insertChild(parts[1:], value)
-	}
-	longestPrefix := findLongestCommonPrefix(part.Value, childNode.patternPart.Value)
-	newParentNode := &Node[T]{
-		patternPart: PatternPart{
-			Value: longestPrefix,
-		},
-		children: map[byte]*Node[T]{},
-	}
-	n.children[firstByte] = newParentNode
-
-	childNode.patternPart.Value = childNode.patternPart.Value[len(longestPrefix):]
-	newParentNode.children[childNode.patternPart.Value[0]] = childNode
-
-	childNode = &Node[T]{
-		patternPart: PatternPart{
-			Value: part.Value[len(longestPrefix):],
-		},
-	}
-	newParentNode.children[childNode.patternPart.Value[0]] = childNode
-	if len(parts) == 1 {
-		childNode.value = &value
-		return nil
-	}
-	return childNode.insertChild(parts[1:], value)
-}
-
-func (n *Node[T]) insertParameterChild(part PatternPart, parts []PatternPart, value T) error {
-	if n.parameterChild != nil {
-		return errors.New("conflict pattern: same place can only have one parameter part")
-	}
-	childNode := &Node[T]{
-		patternPart: part,
-	}
-	n.parameterChild = childNode
-	if len(parts) == 1 {
-		childNode.value = &value
-		return nil
-	}
-	return childNode.insertChild(parts[1:], value)
+	pattern        string
 }
 
 func (n *Node[T]) GetValue() T {
