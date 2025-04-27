@@ -37,28 +37,39 @@ func (t *Trie[T]) MustInsert(pattern string, value T) {
 }
 
 func (t *Trie[T]) insert(n *Node[T], pattern string, parts []PatternPart, value T) error {
-	part := parts[0]
-	parts = parts[1:]
 	if n.isEmptyNode() {
+		part := parts[0]
 		n.patternPart = part
-		if len(parts) == 0 {
+		if len(parts) == 1 {
 			n.pattern = pattern
 			n.value = &value
 			return nil
 		}
-		return t.insertChild(n, pattern, parts, value)
+		return t.insertStaticChild(n, pattern, parts[1:], value)
 	}
-	if part == n.patternPart {
-		return t.insertChild(n, pattern, parts, value)
+	if parts[0] == n.patternPart {
+		return t.insertStaticChild(n, pattern, parts, value)
 	}
-	if n.patternPart.Parameter || part.Parameter {
+	if n.patternPart.Parameter || parts[0].Parameter {
 		return fmt.Errorf("both pattern use parameter but with different placeholder. the new pattern is %s, already exist placeholder is %s", pattern, n.patternPart.Value)
 	}
-	commonPrefix := findLongestCommonPrefix(part.Value, n.patternPart.Value)
-	return errors.New("not implemented")
+	commonPrefix := findLongestCommonPrefix(parts[0].Value, n.patternPart.Value)
+	childNode := &Node[T]{}
+	*childNode = *n
+	childNode.patternPart.Value = n.patternPart.Value[len(commonPrefix):]
+	n.reset()
+	n.children = map[byte]*Node[T]{}
+	n.patternPart.Value = commonPrefix
+	n.children[childNode.patternPart.Value[0]] = childNode
+
+	childNode = &Node[T]{}
+	parts[0].Value = parts[0].Value[len(commonPrefix):]
+	n.children[parts[0].Value[0]] = childNode
+
+	return t.insert(childNode, pattern, parts, value)
 }
 
-func (t *Trie[T]) insertChild(n *Node[T], pattern string, parts []PatternPart, value T) error {
+func (t *Trie[T]) insertStaticChild(n *Node[T], pattern string, parts []PatternPart, value T) error {
 	part := parts[0]
 	if part.Parameter {
 		return t.insertParameterChild(n, pattern, part, parts[1:], value)
@@ -74,7 +85,7 @@ func (t *Trie[T]) insertChild(n *Node[T], pattern string, parts []PatternPart, v
 			childNode.value = &value
 			return nil
 		}
-		return t.insertChild(childNode, pattern, parts[1:], value)
+		return t.insertStaticChild(childNode, pattern, parts[1:], value)
 	}
 	longestPrefix := findLongestCommonPrefix(part.Value, childNode.patternPart.Value)
 	newParentNode := &Node[T]{
@@ -98,7 +109,7 @@ func (t *Trie[T]) insertChild(n *Node[T], pattern string, parts []PatternPart, v
 		childNode.value = &value
 		return nil
 	}
-	return t.insertChild(childNode, pattern, parts[1:], value)
+	return t.insertStaticChild(childNode, pattern, parts[1:], value)
 }
 
 func (t *Trie[T]) insertParameterChild(n *Node[T], pattern string, part PatternPart, parts []PatternPart, value T) error {
@@ -113,7 +124,7 @@ func (t *Trie[T]) insertParameterChild(n *Node[T], pattern string, part PatternP
 		childNode.value = &value
 		return nil
 	}
-	return t.insertChild(childNode, pattern, parts[1:], value)
+	return t.insertStaticChild(childNode, pattern, parts[1:], value)
 }
 
 func (t *Trie[T]) Search(path string, params *[]Param) *Node[T] {
@@ -166,6 +177,14 @@ type Node[T any] struct {
 	patternPart    PatternPart
 	value          *T
 	pattern        string
+}
+
+func (n *Node[T]) reset() {
+	n.children = nil
+	n.parameterChild = nil
+	n.patternPart = PatternPart{}
+	n.value = nil
+	n.pattern = ""
 }
 
 func (n *Node[T]) GetValue() T {
