@@ -3,6 +3,7 @@ package etrie
 import (
 	"errors"
 	"fmt"
+	path2 "path"
 	"strings"
 )
 
@@ -222,13 +223,42 @@ type PatternSplitter interface {
 type GinPathSplitter struct {
 }
 
-func (s GinPathSplitter) Split(text string) ([]PatternPart, error) {
-	return []PatternPart{
-		{
-			Parameter: false,
-			Value:     text,
-		},
-	}, nil
+func (s GinPathSplitter) Split(path string) ([]PatternPart, error) {
+	path = path2.Clean(path)
+	if !strings.HasPrefix(path, "/") {
+		return nil, errors.New("path must begin with /")
+	}
+	var parts []PatternPart
+	start := 0
+	for i := 0; i < len(path); i++ {
+		ch := path[i]
+		if ch != '/' {
+			continue
+		}
+		if i >= len(path)-1 {
+			break
+		}
+		i++
+		if path[i] != ':' && path[i] != '*' {
+			continue
+		}
+		paramStart := i
+		for i < len(path) && path[i] != '/' {
+			i++
+		}
+		if i-paramStart <= 0 {
+			return nil, errors.New("parameter must have a valid name")
+		}
+		parts = append(parts, PatternPart{
+			Value: path[start:paramStart],
+		})
+		parts = append(parts, PatternPart{
+			Parameter: true,
+			Value:     path[paramStart:i],
+		})
+		start = i
+	}
+	return parts, nil
 }
 
 func (s GinPathSplitter) ConsumeParameter(path string, part PatternPart) Param {

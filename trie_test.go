@@ -31,3 +31,27 @@ func TestStaticPath2(t *testing.T) {
 	require.Equal(t, 2, n.GetValue())
 	require.Equal(t, "/abcd/bcd", n.GetPattern())
 }
+
+func TestSplitPath(t *testing.T) {
+	s := GinPathSplitter{}
+	parts, err := s.Split("")
+	require.Error(t, err)
+	parts, _ = s.Split("/")
+	equalParts(t, parts, "/")
+}
+
+func equalParts(t *testing.T, parts []PatternPart, expected ...string) {
+	if len(parts) != len(expected) {
+		t.Errorf("expecting %d parts, got %d", len(expected), len(parts))
+		t.FailNow()
+		return
+	}
+	for i, part := range parts {
+		if part.Value == expected[i] {
+			continue
+		}
+		t.Errorf("got %s, expect %s", part.Value, expected[i])
+		t.FailNow()
+		return
+	}
+}
