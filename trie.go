@@ -12,7 +12,7 @@ type Trie[T any] struct {
 
 func NewTrie[T any](splitter PatternSplitter) *Trie[T] {
 	if splitter == nil {
-		splitter = TextSplitter{}
+		splitter = GinPathSplitter{}
 	}
 	return &Trie[T]{
 		root:     &Node[T]{},
@@ -21,7 +21,10 @@ func NewTrie[T any](splitter PatternSplitter) *Trie[T] {
 }
 
 func (t *Trie[T]) Insert(pattern string, value T) error {
-	parts := t.splitter.Split(pattern)
+	parts, err := t.splitter.Split(pattern)
+	if err != nil {
+		return err
+	}
 	return t.insert(t.root, pattern, parts, value)
 }
 
@@ -35,12 +38,14 @@ func (t *Trie[T]) MustInsert(pattern string, value T) {
 func (t *Trie[T]) insert(n *Node[T], pattern string, parts []PatternPart, value T) error {
 	if n.isEmptyNode() {
 		part := parts[0]
+		parts = parts[1:]
 		n.patternPart = part
-		if len(parts) == 1 {
+		if len(parts) == 0 {
+			n.pattern = pattern
 			n.value = &value
 			return nil
 		}
-		return t.insertChild(n, pattern, parts[1:], value)
+		return t.insertChild(n, pattern, parts, value)
 	}
 	return errors.New("not implemented")
 }
@@ -183,23 +188,23 @@ type PatternPart struct {
 }
 
 type PatternSplitter interface {
-	Split(string) []PatternPart
+	Split(string) ([]PatternPart, error)
 	ConsumeParameter(path string, part PatternPart) Param
 }
 
-type TextSplitter struct {
+type GinPathSplitter struct {
 }
 
-func (s TextSplitter) Split(text string) []PatternPart {
+func (s GinPathSplitter) Split(text string) ([]PatternPart, error) {
 	return []PatternPart{
 		{
 			Parameter: false,
 			Value:     text,
 		},
-	}
+	}, nil
 }
 
-func (s TextSplitter) ConsumeParameter(path string, part PatternPart) Param {
+func (s GinPathSplitter) ConsumeParameter(path string, part PatternPart) Param {
 	return Param{}
 }
 

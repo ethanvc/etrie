@@ -14,3 +14,11 @@ func TestEmptyPath(t *testing.T) {
 	require.Equal(t, 3, resultNode.GetValue())
 	require.Equal(t, "", resultNode.GetPattern())
 }
+
+func TestStaticPath(t *testing.T) {
+	trie := NewTrie[int](nil)
+	trie.MustInsert("/abc/bcd", 1)
+	n := trie.Search("/abc/bcd", &[]Param{})
+	require.Equal(t, 1, n.GetValue())
+	require.Equal(t, "/abc/bcd", n.GetPattern())
+}
