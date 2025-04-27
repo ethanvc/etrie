@@ -2,6 +2,7 @@ package etrie
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 )
 
@@ -36,9 +37,9 @@ func (t *Trie[T]) MustInsert(pattern string, value T) {
 }
 
 func (t *Trie[T]) insert(n *Node[T], pattern string, parts []PatternPart, value T) error {
+	part := parts[0]
+	parts = parts[1:]
 	if n.isEmptyNode() {
-		part := parts[0]
-		parts = parts[1:]
 		n.patternPart = part
 		if len(parts) == 0 {
 			n.pattern = pattern
@@ -47,6 +48,13 @@ func (t *Trie[T]) insert(n *Node[T], pattern string, parts []PatternPart, value 
 		}
 		return t.insertChild(n, pattern, parts, value)
 	}
+	if part == n.patternPart {
+		return t.insertChild(n, pattern, parts, value)
+	}
+	if n.patternPart.Parameter || part.Parameter {
+		return fmt.Errorf("both pattern use parameter but with different placeholder. the new pattern is %s, already exist placeholder is %s", pattern, n.patternPart.Value)
+	}
+	commonPrefix := findLongestCommonPrefix(part.Value, n.patternPart.Value)
 	return errors.New("not implemented")
 }
 

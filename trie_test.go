@@ -22,3 +22,12 @@ func TestStaticPath(t *testing.T) {
 	require.Equal(t, 1, n.GetValue())
 	require.Equal(t, "/abc/bcd", n.GetPattern())
 }
+
+func TestStaticPath2(t *testing.T) {
+	trie := NewTrie[int](nil)
+	trie.MustInsert("/abc/bcd", 1)
+	trie.MustInsert("/abcd/bcd", 2)
+	n := trie.Search("/abcd/bcd", &[]Param{})
+	require.Equal(t, 2, n.GetValue())
+	require.Equal(t, "/abcd/bcd", n.GetPattern())
+}
