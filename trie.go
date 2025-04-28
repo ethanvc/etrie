@@ -141,7 +141,7 @@ func (t *Trie[T]) search(n *Node[T], path string, params *[]Param) (resultNode *
 	}()
 
 	if n.patternPart.Parameter {
-		param := t.splitter.ConsumeParameter(path, n.patternPart)
+		param, _ := t.splitter.ConsumeParameter(path, n.patternPart)
 		*params = append(*params, param)
 		path = path[len(param.Value):]
 	} else {
@@ -217,7 +217,7 @@ type PatternPart struct {
 
 type PatternSplitter interface {
 	Split(string) ([]PatternPart, error)
-	ConsumeParameter(path string, part PatternPart) Param
+	ConsumeParameter(path string, part PatternPart) (Param, error)
 }
 
 type GinPathSplitter struct {
@@ -258,11 +258,35 @@ func (s GinPathSplitter) Split(path string) ([]PatternPart, error) {
 		})
 		start = i
 	}
+	if start < len(path) {
+		parts = append(parts, PatternPart{
+			Value: path[start:],
+		})
+	}
 	return parts, nil
 }
 
-func (s GinPathSplitter) ConsumeParameter(path string, part PatternPart) Param {
-	return Param{}
+func (s GinPathSplitter) ConsumeParameter(path string, part PatternPart) (Param, error) {
+	if !part.Parameter {
+		return Param{}, errors.New("only parameter part can call ConsumeParameter")
+	}
+	if part.Value[0] == '*' {
+		return Param{
+			Key:   part.Value[1:],
+			Value: path,
+		}, nil
+	}
+	if part.Value[0] == ':' {
+		index := strings.IndexByte(path, '/')
+		if index == -1 {
+			index = len(path)
+		}
+		return Param{
+			Key:   part.Value[1:],
+			Value: path[:index],
+		}, nil
+	}
+	return Param{}, errors.New("parameter pattern not support: " + part.Value)
 }
 
 type Param struct {

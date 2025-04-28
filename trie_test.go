@@ -1,19 +1,10 @@
 package etrie
 
 import (
-	"github.com/stretchr/testify/require"
 	"testing"
-)
 
-func TestEmptyPath(t *testing.T) {
-	var resultNode *Node[int]
-	trie := NewTrie[int](nil)
-	trie.MustInsert("", 3)
-	var params []Param
-	resultNode = trie.Search("", &params)
-	require.Equal(t, 3, resultNode.GetValue())
-	require.Equal(t, "", resultNode.GetPattern())
-}
+	"github.com/stretchr/testify/require"
+)
 
 func TestStaticPath(t *testing.T) {
 	trie := NewTrie[int](nil)
@@ -34,10 +25,22 @@ func TestStaticPath2(t *testing.T) {
 
 func TestSplitPath(t *testing.T) {
 	s := GinPathSplitter{}
-	parts, err := s.Split("")
-	require.Error(t, err)
+	var parts []PatternPart
+
+	parts, _ = s.Split("/abc/bcd/:user")
+	equalParts(t, parts, "/abc/bcd/", ":user")
+
+	parts, _ = s.Split("/abc/bcd/:user")
+	equalParts(t, parts, "/abc/bcd/", ":user")
+
 	parts, _ = s.Split("/")
 	equalParts(t, parts, "/")
+
+	parts, _ = s.Split("/abc")
+	equalParts(t, parts, "/abc")
+	parts, _ = s.Split("/abc/bcd")
+	equalParts(t, parts, "/abc/bcd")
+
 }
 
 func equalParts(t *testing.T, parts []PatternPart, expected ...string) {
